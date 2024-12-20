@@ -119,7 +119,7 @@ wc.lpszClassName = "myWindowClass"
 atom = win32gui.RegisterClass(wc)
 
 hwnd = win32gui.CreateWindow(atom, "ScrollBar Demo",
-                               win32con.WS_OVERLAPPEDWINDOW | win32con.WS_VISIBLE,
+                               win32con.WS_OVERLAPPEDWINDOW | win32con.WS_VISIBLE | win32con.WS_THICKFRAME | win32con.WS_VSCROLL, 
                                win32con.CW_USEDEFAULT, win32con.CW_USEDEFAULT, 700, 200,
                                0, 0, 0, None)  # hInstance, NULL
 
