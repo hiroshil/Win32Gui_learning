@@ -3,8 +3,19 @@ import win32con
 import win32gui
 import win32gui_struct
 import commctrl
-from ctypes import wintypes, Structure, POINTER, create_string_buffer, sizeof
-# based on nexus-6's c++ code, converted to python code by AI and modified by me
+import sys
+import struct
+import array
+from ctypes import wintypes, Structure, POINTER, cast, create_string_buffer, memset, sizeof, c_int
+
+is64bit = "64 bit" in sys.version
+_nmhdr_fmt = "PPi"
+if is64bit:
+    # When the item past the NMHDR gets aligned (eg, when it is a struct)
+    # we need this many bytes padding.
+    _nmhdr_align_padding = "xxxx"
+else:
+    _nmhdr_align_padding = ""
 
 class TBBUTTON(Structure):
     _fields_ = [
@@ -16,6 +27,15 @@ class TBBUTTON(Structure):
         ("dwData", POINTER(wintypes.DWORD)),
         ("iString", POINTER(wintypes.INT)),
     ]
+
+def UnpackNMPGCALCSIZE(lparam):
+    format_str = _nmhdr_fmt + _nmhdr_align_padding
+    format_str += "3i"
+    buf = win32gui.PyMakeBuffer(struct.calcsize(format_str), lparam)
+    return win32gui_struct._MakeResult(
+        "NMPGCALCSIZE hwndFrom idFrom code dwFlag iWidth iHeight",
+        struct.unpack(format_str, buf),
+    )
 
 TB_TEST1 = 1003
 TB_TEST2 = 1004
@@ -29,7 +49,7 @@ hWndToolBar = None
 hWndPager = None
 
 def WndProc(hwnd, msg, wParam, lParam):
-    global hWndToolBar
+    global hWndToolBar, hWndPager
     
     if msg == win32con.WM_CREATE:
         win32gui.InitCommonControlsEx(commctrl.ICC_PAGESCROLLER_CLASS)
@@ -63,15 +83,16 @@ def WndProc(hwnd, msg, wParam, lParam):
         win32gui.SendMessage(hWndPager, commctrl.PGM_SETCHILD, 0, hWndToolBar)
 
     elif msg == win32con.WM_NOTIFY:
-        # i'm too lazy to write an unpack function so I picked a random function from the library to use, not recommended to follow
-        pCalcSize = win32gui_struct.UnpackNMITEMACTIVATE(lParam)
-        dwFlag = pCalcSize.iItem
-        if dwFlag == commctrl.PGF_CALCWIDTH:
-            size = create_string_buffer(sizeof(wintypes.SIZE))
-            win32gui.SendMessage(hWndToolBar, commctrl.TB_GETMAXSIZE, 0, size)
-            size = wintypes.SIZE.from_buffer_copy(size)
-            print("pywin32 doesn't support set pCalcSize.iWidth")
-            #pCalcSize._replace(iWidth = size.cx) # https://stackoverflow.com/questions/71430412/python-change-value-at-memory-address
+        hdr = win32gui_struct.UnpackWMNOTIFY(lParam)
+        if hdr.code == commctrl.PGN_CALCSIZE:
+            pCalcSize = UnpackNMPGCALCSIZE(lParam)
+            if pCalcSize.dwFlag == commctrl.PGF_CALCWIDTH:
+                size = create_string_buffer(sizeof(wintypes.SIZE))
+                win32gui.SendMessage(hWndToolBar, commctrl.TB_GETMAXSIZE, 0, size)
+                size = wintypes.SIZE.from_buffer_copy(size)
+                # iWidth = size.cx
+                iWidth_p = cast(lParam + 28, POINTER(c_int))
+                iWidth_p.contents.value = size.cx
 
     elif msg == win32con.WM_COMMAND:
         if win32gui.LOWORD(wParam) == TB_TEST1:
