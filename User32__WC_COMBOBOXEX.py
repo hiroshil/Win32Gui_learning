@@ -153,13 +153,12 @@ def WndProc(hwnd, msg, wParam, lParam):
                 point = POINT(rect[0], rect[1])
                 MapWindowPoints(hwndStaticText, hwnd, byref(point), 2)
                 rect = (point.x, point.y, rect[2], rect[3])
-                #win32gui.RedrawWindow(hwnd, rect, None, win32con.RDW_ERASE | win32con.RDW_INVALIDATE)
-                win32gui.RedrawWindow(hwnd, None, None, win32con.RDW_ERASE | win32con.RDW_INVALIDATE)
+                win32gui.RedrawWindow(hwnd, rect, None, win32con.RDW_ERASE | win32con.RDW_INVALIDATE)
     elif msg == win32con.WM_CTLCOLORSTATIC:
         if win32gui.GetDlgCtrlID(lParam) in (IDC_STATIC_TEXT, IDC_STATIC_ICON):
             hdc_static = wParam
             win32gui.SetTextColor(hdc_static, win32api.RGB(255, 0, 0))  # set text color
-            return win32gui.GetStockObject(win32con.NULL_BRUSH)  # set background to white
+            return win32gui.GetStockObject(win32con.WHITE_BRUSH)  # set background to white
     elif msg == win32con.WM_CLOSE:
         win32gui.DestroyWindow(hwnd)
     elif msg == win32con.WM_DESTROY:
