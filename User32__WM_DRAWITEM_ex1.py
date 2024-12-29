@@ -4,22 +4,15 @@ import win32gui
 import win32ui
 from win32gui_struct import _make_empty_text_buffer, _MakeResult
 import struct
-import sys
 from ctypes import wintypes, POINTER, cast, sizeof
 # based on nexus-6's c++ code, converted to python code by AI and modified by me
 
-is64bit = "64 bit" in sys.version
-
-_ds_fmt = "5L2P4l"
+_ds_fmt = "LLLLLPPllllP"
 
 def UnpackDRAWITEMSTRUCT(lparam):
-    uformat = _ds_fmt
-    if is64bit:
-        uformat += "P"
-    else:
-        uformat += "i"
-    buf = win32gui.PyGetMemory(lparam, struct.calcsize(uformat))
-    CtlType, CtlID, itemID, itemAction, itemState, hwndItem, hDC, left, top, right, bottom, itemData = struct.unpack(uformat, buf)
+    ds_size = struct.calcsize(_ds_fmt)
+    buf = win32gui.PyGetMemory(lparam, ds_size)
+    CtlType, CtlID, itemID, itemAction, itemState, hwndItem, hDC, left, top, right, bottom, itemData = struct.unpack(_ds_fmt, buf)
     rcItem = _MakeResult("RECT left top right bottom", (left, top, right, bottom),)
     return _MakeResult(
         "DRAWITEMSTRUCT CtlType CtlID itemID itemAction itemState hwndItem hDC rcItem itemData",
@@ -182,7 +175,6 @@ def WndProc(hwnd, msg, wParam, lParam):
             )
 
             # Populate listbox
-            win32gui.SendMessage(hwndListBox, win32con.LB_SETITEMHEIGHT, 0, 60) # fix ITEMHEIGHT not initialized in pywin32
             items = ["chilli", "mushroom", "onion", "pineapple", "strawberry"]
             for item in items:
                 win32gui.SendMessage(hwndListBox, win32con.LB_ADDSTRING, 0, item)
@@ -221,7 +213,7 @@ def WndProc(hwnd, msg, wParam, lParam):
 
         # WM_MEASUREITEM send to the owner window of a control when the control is created.
         elif msg == win32con.WM_MEASUREITEM:
-            lp_itemHeight = cast(lParam + (3*sizeof(wintypes.UINT)), POINTER(wintypes.UINT))  # PMEASUREITEMSTRUCT->itemHeight
+            lp_itemHeight = cast(lParam + (4*sizeof(wintypes.UINT)), POINTER(wintypes.UINT))  # PMEASUREITEMSTRUCT->itemHeight
             lp_itemHeight.contents.value = 60 # contains the item height of the owner-drawn listview item. 
 
             return True  # return True for WM_MEASUREITEM
